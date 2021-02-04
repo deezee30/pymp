@@ -56,7 +56,7 @@ if __name__ == "__main__":
         # Prompt to configure before usage
         prompt_key_file()
 
-    assert args.timer != 0, "ERROR: must specify a non zero value for --timer, use 'python pymp.py -h' for help"
+    assert args.timer != 0, "ERROR: must specify a non zero value for --wait, use 'python pymp.py -h' for help"
     pump_btc = float(args.btc)
 
     # create new client obj
