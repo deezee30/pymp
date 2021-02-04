@@ -18,8 +18,8 @@ TPS = 5  # ticks per second post-buy -> may also query binance at this rate
 
 def input_keys():
     print("Please insert keys before usage.")
-    pub = input("Enter public key: ").upper().strip()
-    priv = input("Enter private key: ").upper().strip()
+    pub = input("Enter public key: ").strip()
+    priv = input("Enter private key: ").strip()
 
     return pub, priv
 
@@ -74,6 +74,7 @@ if __name__ == "__main__":
 
     # create new client obj
     client = Client(public_key, private_key)
+    client.API_URL = "https://testnet.binance.vision/api"  # test
     print("Session initiated with Binance API")
 
     # get BTC balance and assert there is enough in account
@@ -81,34 +82,40 @@ if __name__ == "__main__":
     assert btc_acc_amt >= pump_btc, "ERROR: insufficient BTC funds in account, specify a smaller value for --btc"
 
     # Wait for pump command
-    coin = input("Ready. Awaiting coin symbol input: ").upper()  # pump coin
-    symbol = f"{coin}BTC"  # exchange symbol
+    coin = input("Ready. Awaiting coin symbol input: ").upper().strip() # pump coin
+    symbol = f"{coin}BTC" # exchange symbol
+    while client.get_symbol_info(symbol) is None:
+        print("ERROR: inputted coin symbol is wrong!!!")
+        coin = input("Re-enter coin symbol: ").upper().strip()
+        symbol = f"{coin}BTC" # exchange symbol
     pump_buy_t0 = int(round(time.time() * 1000))  # ms
     pump_sell_t0 = pump_buy_t0 + args.wait * 1000  # ms
 
     # Place order at market value using a balance quote
-    # with client.order_market_buy(symbol=symbol,
-    #                              quoteOrderQty=pump_btc) as order:
-    #     if order["status"] is "FILLED":
-    #         # TODO: Notify at which time the buy occurred
-    #         pump_buy_ms = order["transactTime"] - pump_buy_t0 # Time taken to buy in ms
-    #         executedQty = order["executedQty"]
-    #         print(f"Bought {executedQty} {coin} in {pump_buy_ms} ms.")
-    #
-    #         filled = True
-    #     else:
-    #         print(f"Order has not been filled. Response:")
-    #         print(order)
-    #
-    # if filled:
-    #     # Loop each tick at a TPS rate
-    #     while int(round(time.time() * 1000)) < pump_sell_t0:
-    #         pct_increase = 0 # TODO: Percentage monitoring
-    #         if pct_increase >= args.pct:
-    #             # Sell
-    #             break
-    #
-    #         time.sleep(1/TPS)
-    #
-    #     # Sell as soon as either condition is reached
-    #     # TODO: Execute sell
+    with client.create_test_order(symbol=symbol,
+                                  side="BUY",
+                                  type="MARKET",
+                                  quantity=pump_btc) as order: # change to create_order and use quoteOrderQty=
+        if order["status"] == "FILLED":
+            # TODO: Notify at which time the buy occurred
+            pump_buy_ms = order["transactTime"] - pump_buy_t0 # Time taken to buy in ms
+            executedQty = order["executedQty"]
+            print(f"Bought {executedQty} {coin} in {pump_buy_ms} ms.")
+
+            filled = True
+        else:
+            print(f"Order has not been filled. Response:")
+            print(order)
+
+    if filled:
+        # Loop each tick at a TPS rate
+        while int(round(time.time() * 1000)) < pump_sell_t0:
+            pct_increase = 0 # TODO: Percentage monitoring
+            if pct_increase >= args.pct:
+                # Sell
+                exit(0)
+
+            time.sleep(1/TPS)
+
+        # Sell as soon as either condition is reached
+        # TODO: Execute sell
