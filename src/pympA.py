@@ -187,13 +187,15 @@ if __name__ == "__main__":
         bsm.start()
         sold = False
         pct_dev = 1  # deviation in percentage increase
+        cur_price = 0  # most recent price returned by websocket
         # sell either when percentage increase is reached or time delay is reached, whichever comes first
         while int(time.time() * 1000) < pump_sell_t0:
             with LIVE_PRICE_LOCK:
-                if "last" not in live_price:
+                if "last" not in live_price or cur_price == live_price['last']:
                     continue
                 print(f"price for calc: {live_price['last']}")
                 pct_increase = int((live_price['last'] - buy_price / buy_price) * 100)
+                cur_price = live_price['last']
                 print(f"pct_increase: {pct_increase}")
             if (pct_increase + pct_dev >= args.pct) or (pct_increase - pct_dev >= args.pct):
                 # percentage increase reached
