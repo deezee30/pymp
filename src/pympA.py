@@ -129,11 +129,10 @@ def sell(reason):
     pump_sell_t1 = int(time.time() * 1000)  # ms
 
     try:
-        print("try sell")
         sell_order = client.create_order(symbol=symbol,
                                          side="SELL",
                                          type="MARKET",
-                                         quantity=coin_amt)  # change to create_order
+                                         quantity=coin_amt)
         with open("sell-order-response.json", 'w') as f:
             json.dump(sell_order, f, indent=4)
             print(f"Generated sell-order-response.json")
@@ -145,8 +144,8 @@ def sell(reason):
     if 'sell_order' in locals() and sell_order["status"] == "FILLED":
         pump_sell_ms = sell_order["transactTime"] - pump_sell_t1  # Time taken to sell in ms
         executedQty = sell_order["executedQty"]
-        sell_price = sell_order['price']
-        print(f"Sold {executedQty} {coin} in {pump_sell_ms} ms for {sell_price} BTC per {coin} due to {reason}.")
+        sell_price = sum([float(fill['qty']) * float(fill['price']) for fill in sell_order['fills']])
+        print(f"Sold {executedQty} {coin} in {pump_sell_ms} ms for {sell_price} BTC due to {reason}.")
         sold = True
         if timer_transaction is not None:
             timer_transaction.cancel()
@@ -162,7 +161,7 @@ if __name__ == "__main__":
     parser.add_argument("--btc", type=str, default=None, required=True, help="amount of BTC to use to purchase coin")
     parser.add_argument("--wait", type=int, default=0, required=True,
                         help="Time to wait between buy and sell, in seconds")
-    parser.add_argument("--pct", type=int, default=10000, required=False,
+    parser.add_argument("--pct", type=str, default='10000.0', required=False,
                         help="Percentage increase from buy price at which to sell")
     args = parser.parse_args()
 
@@ -176,8 +175,8 @@ if __name__ == "__main__":
 
     # create new client obj
     client = Client(public_key, private_key)
-    # client.API_URL = "https://testnet.binance.vision/api"  # test
     print("Session initiated with Binance API")
+    # client.API_URL = "https://testnet.binance.vision/api"  # for testing
 
     # get BTC balance and assert there is enough in account
     btc_acc_amt = round(float(client.get_asset_balance(asset="BTC")['free']), 8)
@@ -202,7 +201,6 @@ if __name__ == "__main__":
 
     # Place order at market value using a balance quote
     try:
-        print("try buy")
         buy_order = client.create_order(symbol=symbol,
                                         side="BUY",
                                         type="MARKET",
