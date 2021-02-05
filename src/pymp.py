@@ -3,6 +3,7 @@ import os # Util
 import argparse # Command parser
 import time # Timing
 import json # JSON
+import csv # For price history analysis
 import threading  # multithreading
 
 # python-binance lib
@@ -22,6 +23,7 @@ TPS = 5 # ticks per second post-buy -> may also query binance at this rate
 # Realtime async price update
 sync_lock = threading.Lock() # used for accessing sync price
 order_last_price = None # last fetched order asset price
+price_history = {} # used for tracking price for post analysis
 order_buy_price = None # order price at buy time
 
 def prompt_key_file():
@@ -37,7 +39,8 @@ def fetch_price(ping):
     if ping["e"] != "error":
         with sync_lock:
             global order_last_price
-            order_last_price = float(ping["c"])
+            order_last_price = float(ping["c"]) # update most recent known price
+            price_history[now()] = order_last_price # append to history for analysis
 
 def now():
     return int(round(time.time() * 1000)) # ms
@@ -119,7 +122,7 @@ if __name__ == "__main__":
 
     # Timings
     pump_buy_t0 = now() # ms
-    pump_sell_t0 = pump_buy_t0 + (args.wait-1) * 1000 # ms
+    pump_sell_t0 = pump_buy_t0 + args.wait * 1000 # ms
 
     buy_filled = False
 
@@ -237,3 +240,10 @@ if __name__ == "__main__":
 
         # properly terminate WebSocket
         reactor.stop()
+
+        # Save price history to file
+        with open(f"{now()}.csv", 'w') as csv_file:
+            csv_writer = csv.writer(csv_file)
+            with sync_lock:
+                for tick in price_history:
+                    csv_writer.writerow([tick, price_history[tick]])
